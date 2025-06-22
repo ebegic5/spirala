@@ -27,7 +27,7 @@ import coil.compose.AsyncImage
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NewsDetailsScreen(navController: NavController, newsId: String) {
-    val allNews = AppModule.newsDAO.getAllStories()
+    val allNews = AppModule.savedNewsDAO.allNews()
     val news = allNews.find { it.uuid == newsId }
 
     if (news == null) {
@@ -39,12 +39,19 @@ fun NewsDetailsScreen(navController: NavController, newsId: String) {
     var similar by remember { mutableStateOf<List<NewsItem>>(emptyList()) }
 
     LaunchedEffect(news.imageUrl) {
-        news.imageUrl?.let { url ->
-            try {
-                tags = AppModule.imagaDAO.getTags(url)
-                println(">>> TAGOVI ZA $url: $tags")
-            } catch (e: Exception) {
-                println(">>> GRESKA U TAGOVIMA: ${e.message}")
+        val cached = AppModule.savedNewsDAO.getTags(news.id)
+        if (cached.isNotEmpty()) {
+            tags = cached
+        } else {
+            news.imageUrl?.let { url ->
+                try {
+                    val fetched = AppModule.imagaDAO.getTags(url)
+                    tags = fetched
+                    AppModule.savedNewsDAO.addTags(fetched, news.id)
+                    println(">>> TAGOVI ZA $url: $fetched")
+                } catch (e: Exception) {
+                    println(">>> GRESKA U TAGOVIMA: ${e.message}")
+                }
             }
         }
     }
@@ -52,8 +59,13 @@ fun NewsDetailsScreen(navController: NavController, newsId: String) {
     LaunchedEffect(news.uuid) {
         try {
             similar = AppModule.newsDAO.getSimilarStories(news.uuid)
-            println(">>> Similar stories: ${similar.size}")
-        } catch (_: Exception) {}
+            println(">>> Similar stories: ${'$'}{similar.size}")
+        } catch (_: Exception) {
+            val cachedTags = AppModule.savedNewsDAO.getTags(news.id).take(2)
+            if (cachedTags.isNotEmpty()) {
+                similar = AppModule.savedNewsDAO.getSimilarNews(cachedTags)
+            }
+        }
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {

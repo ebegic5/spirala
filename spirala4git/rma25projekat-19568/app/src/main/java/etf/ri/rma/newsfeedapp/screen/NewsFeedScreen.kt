@@ -42,6 +42,7 @@ fun NewsFeedScreen(navController: NavController) {
 
                     if (categoryParam.isNotBlank()) {
                         val combined = AppModule.newsDAO.getTopStoriesByCategory(categoryParam)
+                        combined.forEach { AppModule.savedNewsDAO.saveNews(it) }
                         featuredNews = combined.shuffled().take(3)
                     }
                 } catch (e: Exception) {
@@ -52,7 +53,7 @@ fun NewsFeedScreen(navController: NavController) {
     }
 
 
-    val allNews = AppModule.newsDAO.getAllStories()
+    val allNews = AppModule.savedNewsDAO.allNews()
 
     val filteredNews: List<NewsItem> = when (selectedCategory) {
         "Sve" -> allNews
